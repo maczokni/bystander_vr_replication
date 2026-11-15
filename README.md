@@ -72,3 +72,7 @@ Set `run_physiology_preprocessing <- TRUE` in `run_all.R` to run it.
 
 The analysis was run in R with the packages listed above. Running `run_all.R`
 writes `output/session_info.txt` with the package versions used.
+
+## Use of AI
+
+This repository was prepared with the help of a large language model (Claude, Anthropic). The model restructured the authors' original analysis scripts into this replication pipeline, removed identifying information, checked the code and reported statistics for errors, and tested that the pipeline reproduces the published results. The study design, data collection, analyses and interpretation are the authors' own. The authors reviewed the code and take full responsibility for its content.
