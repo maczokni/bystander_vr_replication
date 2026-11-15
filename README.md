@@ -1,0 +1,74 @@
+# Victims' perspectives on bystander intervention: replication code
+
+R code to reproduce the analyses, figures and tables for the paper
+*Victims' Perspectives on Direct and Indirect Bystander Intervention During
+Ambiguous Sexual Harassment: A Virtual Reality Experiment*.
+
+The study is a 2 (presentation: 360° virtual reality vs written vignette) × 3
+(intervention: none, indirect, direct) between-participants experiment.
+Participants experienced a scenario of leering in a university classroom from the
+victim's perspective, and reported whether they saw it as sexual harassment,
+whether a bystander noticed or helped, their affect (PANAS), and the realism and
+presence of the scenario. Heart rate variability (HRV) and electrodermal activity
+(EDA) were recorded in the VR condition.
+
+## Data
+
+**The data are not included in this repository.** To protect participants'
+anonymity, no raw or derived data files are shared here, and the scripts contain
+no participant identifiers. `data/README.md` describes the input files the scripts
+expect and their format, and `data/templates/` contains empty templates.
+
+## How to run
+
+1. Open `bystander-vr-replication.Rproj` in RStudio (this sets the working
+   directory to the project root).
+2. Place the input files in `data/raw/` as described in `data/README.md`.
+3. Install the required packages:
+
+   ```r
+   install.packages(c("dplyr", "tidyr", "stringr", "readr", "purrr", "tibble",
+                      "ggplot2", "janitor", "vcd", "broom", "patchwork",
+                      "RColorBrewer"))
+   ```
+
+4. Run `run_all.R`. Figures are written to `output/figures/` and tables to
+   `output/tables/`.
+
+The physiological pre-processing (`R/01_process_physiology.R`) is switched off by
+default because it needs the raw iMotions exports and a manual step in Kubios HRV.
+Set `run_physiology_preprocessing <- TRUE` in `run_all.R` to run it.
+
+## Scripts
+
+| Script | What it does | Paper output |
+|---|---|---|
+| `R/00_setup.R` | Packages, file paths, settings, helper functions | – |
+| `R/01_process_physiology.R` | Splits iMotions recordings into baseline and scenario segments, prepares ECG for Kubios, extracts HRV statistics, computes mean EDA | Physiological measures |
+| `R/02_prepare_survey.R` | Combines VR and written surveys, attaches condition and demographics, scores PANAS, realism and presence | Participants section |
+| `R/03_perceptions_rq1_rq3.R` | Chi-square tests for classification as harassment, bystander noticing, and helpfulness | Figures 2, 3a, 3b, 4 |
+| `R/04_affect_rq4.R` | PANAS by intervention condition | Figures 5a, 5b; Table 1 |
+| `R/05_physiology_rq5.R` | One-way ANOVA (with Tukey HSD) for HRV and EDA | Figures 6, 7 |
+| `R/06_format_rq6_rq7.R` | Presence and realism by format; affect by presence, realism and format | Figure 8; Table 2 |
+| `R/07_summary_table.R` | Collects headline results for all hypotheses | Table 3 |
+
+## Analysis notes
+
+- Statistical tests are two-sided. The 2 × 2 test for H3 uses Yates' continuity
+  correction. Results are reported uncorrected, with a
+  Bonferroni check across the 11 hypothesis tests (α = .05/11 = .0045).
+- PANAS items left unanswered are treated as missing, so participants with an
+  unanswered item have no score on that subscale and drop out of those models.
+- The realism score sums items 1–6 (item 1 reverse-coded); item 7 (nausea, VR
+  only) is not included. The presence score sums all 13 items (items 3, 4, 9 and
+  13 reverse-coded). Both scales are adapted from van Gelder et al. (2019).
+- Physiological change scores are scenario-video values minus baseline values.
+  The outcome analysed can be changed at the top of `R/05_physiology_rq5.R`.
+- HRV is the natural log of high-frequency power, HF(log), exported from Kubios
+  HRV Scientific (v4.1.1). Recordings with technical errors (no usable baseline
+  or scenario segment) are excluded automatically.
+
+## Software
+
+The analysis was run in R with the packages listed above. Running `run_all.R`
+writes `output/session_info.txt` with the package versions used.

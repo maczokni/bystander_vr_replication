@@ -1,0 +1,117 @@
+# =============================================================================
+# 03_perceptions_rq1_rq3.R
+# RQ1  Classification of the scenario as sexual harassment     (Figure 2)
+# RQ2  Whether a bystander was perceived to have noticed       (Figures 3a, 3b)
+# RQ3  Perceived helpfulness of direct vs indirect intervention (Figure 4)
+# =============================================================================
+
+source(file.path("R", "00_setup.R"))
+
+dat <- read.csv(files$analysis_data) %>%
+  mutate(scenario = as_scenario(scenario),
+         harassment_grouped = factor(harassment_grouped,
+                                     levels = c("Not sexual harassment",
+                                                "I'm not sure",
+                                                "Sexual harassment")),
+         noticed = factor(noticed, levels = union(c("Yes", "No", "Not sure"),
+                                                  sort(unique(noticed)))),
+         helped = factor(helped, levels = c("No or Not sure", "Yes")))
+
+# Stacked percentage bar chart used for Figures 2, 3a and 4
+percent_bar <- function(data, response, title, ylab = "Percentage of responses") {
+  data %>%
+    filter(!is.na({{ response }})) %>%
+    count(scenario, response = {{ response }}) %>%
+    group_by(scenario) %>%
+    mutate(p = n / sum(n)) %>%
+    ggplot(aes(x = scenario, y = p, fill = response)) +
+    geom_col(position = "fill", colour = "black") +
+    scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+    scale_fill_brewer(palette = "BrBG", name = "Response") +
+    theme_bw() +
+    theme(axis.text.x = element_text(size = 10)) +
+    ggtitle(title) +
+    xlab("") +
+    ylab(ylab)
+}
+
+# Pearson chi-square with expected counts, as reported in the paper
+chisq_report <- function(tab, label) {
+  test <- suppressWarnings(chisq.test(tab, correct = FALSE))
+  cat("\n====", label, "====\n")
+  print(tab)
+  cat("\nRow/column percentages by scenario:\n")
+  print(round(prop.table(tab, 2) * 100, 1))
+  cat("\nExpected counts:\n")
+  print(round(test$expected, 2))
+  cat(sprintf("\nchi-square(%d) = %.2f, %s\n",
+              test$parameter, test$statistic, fmt_p(test$p.value)))
+  invisible(test)
+}
+
+# ---- RQ1: classification as sexual harassment -------------------------------
+fig2 <- percent_bar(dat, harassment_grouped,
+                    "Would you classify the scenario as sexual harassment?")
+save_fig(fig2, "figure_2_harassment_classification")
+
+tab_rq1 <- with(dat, table(harassment_grouped, scenario))
+test_rq1 <- chisq_report(tab_rq1, "RQ1: harassment classification x scenario")
+
+store_result("RQ1", "H1: scenario recognised as sexual harassment",
+             sprintf("chi-square(%d) = %.2f, %s", test_rq1$parameter,
+                     test_rq1$statistic, fmt_p(test_rq1$p.value)))
+
+# ---- RQ2: did a bystander notice? ------------------------------------------
+fig3a <- percent_bar(dat, noticed,
+                     "Did any of the bystanders in the scenario notice what was happening?")
+save_fig(fig3a, "figure_3a_bystander_noticed")
+
+tab_rq2 <- with(dat %>% filter(!is.na(noticed)), table(droplevels(noticed), scenario))
+names(dimnames(tab_rq2)) <- c("noticed", "scenario")
+test_rq2 <- chisq_report(tab_rq2, "RQ2: bystander noticed x scenario")
+
+# effect size (Cramer's V) and adjusted standardised residuals
+rq2_assoc <- vcd::assocstats(tab_rq2)
+print(rq2_assoc)
+cat("\nAdjusted standardised residuals:\n")
+print(round(test_rq2$stdres, 2))
+write.csv(as.data.frame.matrix(round(test_rq2$stdres, 2)),
+          file.path(paths$tables, "rq2_adjusted_residuals.csv"))
+
+# Figure 3b: association plot shaded by residuals
+for (ext in c("pdf", "png")) {
+  if (ext == "pdf") {
+    pdf(file.path(paths$figures, "figure_3b_noticed_residuals.pdf"), width = 7, height = 5)
+  } else {
+    png(file.path(paths$figures, "figure_3b_noticed_residuals.png"),
+        width = 7, height = 5, units = "in", res = 300)
+  }
+  vcd::assoc(tab_rq2, shade = TRUE,
+             labeling_args = list(set_varnames = c(noticed = "Did anyone notice?",
+                                                   scenario = "Scenario")))
+  dev.off()
+}
+
+store_result("RQ2", "H2: bystanders noticed",
+             sprintf("chi-square(%d) = %.2f, %s, Cramer's V = %.2f",
+                     test_rq2$parameter, test_rq2$statistic, fmt_p(test_rq2$p.value),
+                     rq2_assoc$cramer))
+
+# ---- RQ3: was the intervention helpful? (intervention conditions only) ------
+intervention_only <- dat %>%
+  filter(scenario != "Control") %>%
+  mutate(scenario = droplevels(scenario))
+
+fig4 <- percent_bar(intervention_only, helped,
+                    "Did any of the bystanders help in any way?",
+                    ylab = "Percentage of respondents")
+save_fig(fig4, "figure_4_bystander_helped")
+
+tab_rq3 <- with(intervention_only, table(helped, scenario))
+test_rq3 <- chisq_report(tab_rq3, "RQ3: helped x scenario (direct vs indirect)")
+cat("\nWith Yates' continuity correction:\n")
+print(suppressWarnings(chisq.test(tab_rq3, correct = TRUE)))
+
+store_result("RQ3", "H3: perceived as helpful",
+             sprintf("chi-square(%d) = %.2f, %s", test_rq3$parameter,
+                     test_rq3$statistic, fmt_p(test_rq3$p.value)))
